@@ -3,6 +3,7 @@ const { token } = require("./config.json");
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 
+// Put each command in the commands folder into it's own collection to easily keep track of them
 client.commands = new Collection();
 
 const commandFiles = fs
