@@ -1,0 +1,23 @@
+const { SlashCommandBuilder } = require("@discordjs/builders");
+const { Client, CommandInteraction } = require("discord.js");
+const Command = require("../classes/Command");
+
+class CommandNameHere extends Command {
+    /**
+     * The basis for a command.
+     * @param {SlashCommandBuilder} data The command data.
+     * @param {boolean} testing If `true`, the command will only be registered on the GUILD_ID in `.env`
+     */
+    constructor() {
+        super(new SlashCommandBuilder(), true);
+    }
+
+    /**
+     * Executes the command.
+     * @param {Client} client The bot client.
+     * @param {CommandInteraction} interaction The command interaction.
+     */
+    async execute(client, interaction) {}
+}
+
+module.exports = CommandNameHere;
