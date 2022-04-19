@@ -1,39 +1,48 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
-const { clientId, testGuildId, token } = require('./config.json');
+const { REST } = require("@discordjs/rest");
+const { Routes } = require("discord-api-types/v9");
+const { clientId, testGuildId, token } = require("./config.json");
+const fs = require("fs");
 
-const commands = [
-	new SlashCommandBuilder()
-        .setName('link')
-        .setDescription('Link your discord account with a BeatLeader account!')
-        .addStringOption(option => 
-            option.setName('userid')
-            .setDescription('The User ID of your BeatLeader account.')
-            .setRequired(true)),
-    new SlashCommandBuilder()
-        .setName('unlink')
-        .setDescription('Unink your discord account with a BeatLeader account!'),
-	new SlashCommandBuilder()
-        .setName('rank')
-        .setDescription(`Replies with user's leaderboard rank!`)
-        .addStringOption(option =>
-            option.setName('userid')
-            .setDescription(`The User ID of the BeatLeader account.`)
-            .setRequired(false))
-        .addMentionableOption(option =>
-            option.setName('mentionable')
-            .setDescription(`Mention the user with a linked BeatLeader account.`)
-            .setRequired(false)),
-]
-	.map(command => command.toJSON());
+const rest = new REST({ version: "9" }).setToken(token);
 
-const rest = new REST({ version: '9' }).setToken(token);
+// Read command data and push the data to these arrays depending on the testing value
+const publicCommands = [];
+const privateCommands = [];
+const commandFiles = fs
+    .readdirSync("./commands")
+    .filter((file) => file.endsWith(".js"));
 
-rest.put(Routes.applicationCommands(clientId), { body: commands })
-	.then(() => console.log('Successfully registered application commands.'))
-	.catch(console.error);
+for (const file of commandFiles) {
+    const commandClass = require(`./commands/${file}`);
+    const command = new commandClass();
 
-/*rest.put(Routes.applicationGuildCommands(clientId, testGuildId), { body: commands })
-	.then(() => console.log('Successfully registered application commands.'))
-	.catch(console.error);*/
+    if (command.testing) {
+        privateCommands.push(command.data.toJSON());
+    } else {
+        publicCommands.push(command.data.toJSON());
+    }
+}
+
+(async () => {
+    await rest
+        .put(Routes.applicationCommands(clientId), {
+            body: publicCommands,
+        })
+        .then(() =>
+            console.log(
+                `Successfully registered ${publicCommands.length} public application commands.`
+            )
+        )
+        .catch(console.error);
+
+    await rest
+        .put(Routes.applicationGuildCommands(clientId, testGuildId), {
+            body: privateCommands,
+        })
+        .then(() =>
+            console.log(
+                `Successfully registered ${privateCommands.length} private application commands.`
+            )
+        )
+        .catch(console.error);
+})();
