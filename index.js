@@ -20,7 +20,7 @@ const imageOffset = 50;
 var imageReady = false;
 var processing = false;
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
 
 let linkedAccounts = [
     {
@@ -247,6 +247,21 @@ client.on('interactionCreate', async interaction => {
                 }
             }
             await interaction.reply({ content: `You don't have an account linked.`, ephemeral: true });
+        }
+    }
+});
+
+client.on('messageCreate', async message => {
+    if (message.attachments?.size > 0) {
+        for (let attachment of message.attachments.values()) {
+            if (attachment.name?.endsWith(".bsor")) {
+                await message.reply(
+                    {
+                        content: `See here: <https://www.replay.beatleader.xyz/?link=${attachment.url}>`,
+                        allowedMentions: {parse: []}
+                    });
+                return;
+            }
         }
     }
 });
