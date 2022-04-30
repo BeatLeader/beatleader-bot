@@ -105,6 +105,20 @@ client.on('interactionCreate', async interaction => {
         if(userID != undefined && mentionable == undefined) {
             await interaction.deferReply();
             const file = new MessageAttachment(`./output/${userID}.png`);
+            var cancelProcess = false;
+            let url = "https://beatleader.azurewebsites.net/player/" + userID;
+            await fetch(url, { method: "GET" })
+                .then(async res => {
+                    try {
+                        let json = await res.json();
+                    } catch (error) {
+                        console.log(error);
+                        await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
+                        cancelProcess = true;
+                    }
+                });
+            if(cancelProcess)
+                return;
             var sendError = "";
             const user = await client.users.fetch('396771959305797643');
             async function attemptDrawing() {
@@ -146,6 +160,19 @@ client.on('interactionCreate', async interaction => {
                 if(linkedAccounts[i].discordID == mentionable.id) {
                     await interaction.deferReply();
                     const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
+                    let url = "https://beatleader.azurewebsites.net/player/" + linkedAccounts[i].blUserID;
+                    await fetch(url, { method: "GET" })
+                        .then(async res => {
+                            try {
+                                let json = await res.json();
+                            } catch (error) {
+                                console.log(error);
+                                await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
+                                cancelProcess = true;
+                            }
+                        });
+                    if(cancelProcess)
+                        return;
                     var sendError = "";
                     const user = await client.users.fetch('396771959305797643');
                     async function attemptDrawing() {
@@ -190,6 +217,19 @@ client.on('interactionCreate', async interaction => {
                 if(linkedAccounts[i].discordID == user.id) {
                     await interaction.deferReply();
                     const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
+                    let url = "https://beatleader.azurewebsites.net/player/" + linkedAccounts[i].blUserID;
+                    await fetch(url, { method: "GET" })
+                        .then(async res => {
+                            try {
+                                let json = await res.json();
+                            } catch (error) {
+                                console.log(error);
+                                await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
+                                cancelProcess = true;
+                            }
+                        });
+                    if(cancelProcess)
+                        return;
                     var sendError = "";
                     const user = await client.users.fetch('396771959305797643');
                     async function attemptDrawing() {
@@ -236,6 +276,25 @@ client.on('interactionCreate', async interaction => {
         var attempt = 0;
         await interaction.deferReply();
         const file = new MessageAttachment(`./output/${key}.png`);
+        let url = "https://api.beatsaver.com/maps/id/" + key;
+        await fetch(url, { method: "GET" })
+            .then(async res => {
+                try {
+                    let json = await res.json();
+                    if(json.error != undefined)
+                        if(json.error == "Not Found") {
+                            await interaction.editReply({content: "A beatmap with that `key` doesn't exist!"});
+                            cancelProcess = true;
+                        }
+                            
+                } catch (error) {
+                    console.log(error);
+                    await interaction.editReply({content: "A beatmap with that `key` doesn't exist!"});
+                    cancelProcess = true;
+                }
+            });
+        if(cancelProcess)
+            return;
         var sendError = "";
         const user = await client.users.fetch('396771959305797643');
         async function attemptDrawing() {
@@ -283,7 +342,6 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('messageCreate', async message => {
-    console.log("test message");
     if (message.attachments?.size > 0) {
         for (let attachment of message.attachments.values()) {
             if (attachment.name?.endsWith(".bsor")) {
@@ -510,6 +568,8 @@ async function startDrawingMap(key) {
       .then(res => res.json())
       .then(async (json) => {
         const title = json.name;
+        if(title == undefined)
+            return true;
         const coverURL = json.versions[0].coverURL;
         const mapper = json.metadata.levelAuthorName;
         const ranked = json.ranked;
