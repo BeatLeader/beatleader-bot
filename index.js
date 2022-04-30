@@ -514,7 +514,7 @@ async function startDrawingMap(key) {
         const mapper = json.metadata.levelAuthorName;
         const ranked = json.ranked;
         const seconds = json.metadata.duration;
-        const songLength = "🕗" + Math.floor(180 / 60) + ":" + String(180 % 60).padEnd(2, "0");
+        const songLength = "🕗" + Math.floor(seconds / 60) + ":" + String(seconds % 60).padEnd(2, "0");
         const BPM = "🎵" + json.metadata.bpm;
         const rating = "📈" + Math.round(json.stats.score * 100 * 100) / 100 + "%";
         const uploadDate = json.uploaded;
