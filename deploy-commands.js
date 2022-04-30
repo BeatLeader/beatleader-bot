@@ -25,6 +25,13 @@ const commands = [
             option.setName('mentionable')
             .setDescription(`Mention the user with a linked BeatLeader account.`)
             .setRequired(false)),
+    new SlashCommandBuilder()
+        .setName('map')
+        .setDescription(`Replies with details on a map!`)
+        .addStringOption(option =>
+            option.setName('key')
+            .setDescription(`The map key of the beatmap from BeatSaver.`)
+            .setRequired(true))
 ]
 	.map(command => command.toJSON());
 
@@ -34,6 +41,6 @@ rest.put(Routes.applicationCommands(clientId), { body: commands })
 	.then(() => console.log('Successfully registered application commands.'))
 	.catch(console.error);
 
-/*rest.put(Routes.applicationGuildCommands(clientId, testGuildId), { body: commands })
+rest.put(Routes.applicationGuildCommands(clientId, testGuildId), { body: commands })
 	.then(() => console.log('Successfully registered application commands.'))
-	.catch(console.error);*/
+	.catch(console.error);

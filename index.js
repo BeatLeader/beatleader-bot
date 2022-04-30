@@ -1,8 +1,9 @@
-const { Client, Intents, MessageEmbed, MessageAttachment } = require('discord.js');
+const { Client, Intents, MessageEmbed, MessageAttachment, MessageActionRow, MessageButton } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas')
 const { token } = require('./config.json');
 const http = require('https')
 const fs = require('fs');
+const path = require('path');
 const fetch = require('node-fetch');
 const Downloader = require("nodejs-file-downloader");
 const Jimp = require("jimp");
@@ -11,11 +12,17 @@ const imageType = require('image-type');
 const { waitUntil } = require('async-wait-until/dist/commonjs');
 const { notStrictEqual } = require('assert');
 const { send } = require('process');
+const { padEnd } = require('core-js/features/string');
 
 let settings = { method: "GET" };
 
 const borderOffset = 5;
 const imageOffset = 50;
+var difficultyLength = 0;
+var difficultyCount = 0;
+var difficultyPadding = 10;
+var difficultyTextHeight = 138;
+var difficultyFontSize = 20;
 
 var imageReady = false;
 var processing = false;
@@ -34,6 +41,8 @@ client.once('ready', () => {
     let rawAccountData = fs.readFileSync('linkedAccounts.json');
     linkedAccounts = JSON.parse(rawAccountData);
 });
+
+var highestDiffId = 0;
 
 client.on('interactionCreate', async interaction => {
 	if (!interaction.isCommand()) return;
@@ -95,76 +104,48 @@ client.on('interactionCreate', async interaction => {
         var attempt = 0;
         if(userID != undefined && mentionable == undefined) {
             await interaction.deferReply();
-            let url = "https://beatleader.azurewebsites.net/player/" + userID;
-            const file = new MessageAttachment(`${userID}.png`);
-                    const exampleEmbed = new MessageEmbed()
-                    var cancelProcess = false;
-                    await fetch(url, { method: "GET" })
-                        .then(async res => {
-                            try {
-                                let json = await res.json();
-                                exampleEmbed.setColor(HSVtoRGB(Math.max(0, json.pp - 1000) / 18000, 1.0, 1.0));
-                            } catch (error) {
-                                console.log(error);
-                                await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
-                                cancelProcess = true;
-                            }
-                        });
-                    if(cancelProcess)
-                        return;
-                    exampleEmbed.setAuthor({ name: "View on BeatLeader", url: "https://www.beatleader.xyz/u/" + userID, iconURL: 'https://github.com/BeatLeader/beatleader-website/raw/master/public/assets/favicon-96x96.png' })
-                    exampleEmbed.setImage("attachment://" + userID + ".png");
-                    var sendError = "";
-                    const user = await client.users.fetch('396771959305797643');
-                    async function attemptDrawing() {
-                        attempt++;
-                        await startDrawing(userID);
-                        try {
-                            await waitUntil(() => imageReady == true);
-                            await interaction.editReply({embeds: [exampleEmbed], files: [file]});
-                            processing = false;
-                            return false;
-                        } catch (error) {
-                            console.log(error);
+            const file = new MessageAttachment(`./output/${userID}.png`);
+            var sendError = "";
+            const user = await client.users.fetch('396771959305797643');
+            async function attemptDrawing() {
+                attempt++;
+                await startDrawing(userID);
+                try {
+                    await waitUntil(() => imageReady == true);
+                    const row = new MessageActionRow()
+                    .addComponents(
+                        new MessageButton()
+                            .setURL("https://www.beatleader.xyz/u/" + userID)
+                            .setLabel('View on BeatLeader')
+                            .setStyle('LINK'),
+                    );
+                    await interaction.editReply({files: [file], components: [row]});
+                    processing = false;
+                    clearCacheFolders();
+                    return false;
+                } catch (error) {
+                    console.log(error);
 
-                            processing = false;
-                            sendError = 'An error has occurred: \n ```\n' + error + '\n```';
-                            if(attempt < 3)
-                                await attemptDrawing();
-                            else
-                                return true;
-                        }
-                    }
-                    if(await attemptDrawing()) {
-                        await interaction.editReply({content: "An error has occurred. Please try again."});
-                        user.send(sendError);
-                    }
-                    return;
+                    processing = false;
+                    sendError = 'An error has occurred: \n ```\n' + error + '\n```';
+                    if(attempt < 3)
+                        await attemptDrawing();
+                    else
+                        return true;
+                }
+            }
+            if(await attemptDrawing()) {
+                await interaction.editReply({content: "An error has occurred. Please try again."});
+                user.send(sendError);
+                clearCacheFolders();
+            }
+            return;
             
         } else if(userID == undefined && mentionable != undefined) {
             for(var i = 0; i < linkedAccounts.length; i++) {
                 if(linkedAccounts[i].discordID == mentionable.id) {
                     await interaction.deferReply();
-                    
-                    let url = "https://beatleader.azurewebsites.net/player/" + linkedAccounts[i].blUserID;
-                    const file = new MessageAttachment(`${linkedAccounts[i].blUserID}.png`);
-                    const exampleEmbed = new MessageEmbed()
-                    var cancelProcess = false;
-                    await fetch(url, { method: "GET" })
-                        .then(async res => {
-                            try {
-                                let json = await res.json();
-                                exampleEmbed.setColor(HSVtoRGB(Math.max(0, json.pp - 1000) / 18000, 1.0, 1.0));
-                            } catch (error) {
-                                console.log(error);
-                                await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
-                                cancelProcess = true;
-                            }
-                        });
-                    if(cancelProcess)
-                        return;
-                    exampleEmbed.setAuthor({ name: "View on BeatLeader", url: "https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID, iconURL: 'https://github.com/BeatLeader/beatleader-website/raw/master/public/assets/favicon-96x96.png' })
-                    exampleEmbed.setImage("attachment://" + linkedAccounts[i].blUserID + ".png");
+                    const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
                     var sendError = "";
                     const user = await client.users.fetch('396771959305797643');
                     async function attemptDrawing() {
@@ -172,8 +153,16 @@ client.on('interactionCreate', async interaction => {
                         await startDrawing(linkedAccounts[i].blUserID);
                         try {
                             await waitUntil(() => imageReady == true);
-                            await interaction.editReply({embeds: [exampleEmbed], files: [file]});
+                            const row = new MessageActionRow()
+                            .addComponents(
+                                new MessageButton()
+                                    .setURL("https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID)
+                                    .setLabel('View on BeatLeader')
+                                    .setStyle('LINK'),
+                            );
+                            await interaction.editReply({files: [file], components: [row]});
                             processing = false;
+                            clearCacheFolders();
                             return false;
                         } catch (error) {
                             console.log(error);
@@ -188,6 +177,7 @@ client.on('interactionCreate', async interaction => {
                     if(await attemptDrawing()) {
                         await interaction.editReply({content: "An error has occurred. Please try again."});
                         user.send(sendError);
+                        clearCacheFolders();
                     }
                     return;
                 }
@@ -199,25 +189,7 @@ client.on('interactionCreate', async interaction => {
             for(var i = 0; i < linkedAccounts.length; i++) {
                 if(linkedAccounts[i].discordID == user.id) {
                     await interaction.deferReply();
-                    let url = "https://beatleader.azurewebsites.net/player/" + linkedAccounts[i].blUserID;
-                    const file = new MessageAttachment(`${linkedAccounts[i].blUserID}.png`);
-                    const exampleEmbed = new MessageEmbed()
-                    var cancelProcess = false;
-                    await fetch(url, { method: "GET" })
-                        .then(async res => {
-                            try {
-                                let json = await res.json();
-                                exampleEmbed.setColor(HSVtoRGB(Math.max(0, json.pp - 1000) / 18000, 1.0, 1.0));
-                            } catch (error) {
-                                console.log(error);
-                                await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
-                                cancelProcess = true;
-                            }
-                        });
-                    if(cancelProcess)
-                        return;
-                    exampleEmbed.setAuthor({ name: "View on BeatLeader", url: "https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID, iconURL: 'https://github.com/BeatLeader/beatleader-website/raw/master/public/assets/favicon-96x96.png' })
-                    exampleEmbed.setImage("attachment://" + linkedAccounts[i].blUserID + ".png");
+                    const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
                     var sendError = "";
                     const user = await client.users.fetch('396771959305797643');
                     async function attemptDrawing() {
@@ -225,8 +197,16 @@ client.on('interactionCreate', async interaction => {
                         await startDrawing(linkedAccounts[i].blUserID);
                         try {
                             await waitUntil(() => imageReady == true);
-                            await interaction.editReply({embeds: [exampleEmbed], files: [file]});
+                            const row = new MessageActionRow()
+                            .addComponents(
+                                new MessageButton()
+                                    .setURL("https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID)
+                                    .setLabel('View on BeatLeader')
+                                    .setStyle('LINK'),
+                            );
+                            await interaction.editReply({files: [file], components: [row]});
                             processing = false;
+                            clearCacheFolders();
                             return false;
                         } catch (error) {
                             console.log(error);
@@ -242,16 +222,68 @@ client.on('interactionCreate', async interaction => {
                     if(await attemptDrawing()) {
                         await interaction.editReply({content: "An error has occurred. Please try again."});
                         user.send(sendError);
+                        clearCacheFolders();
                     }
                     return;
                 }
             }
             await interaction.reply({ content: `You don't have an account linked.`, ephemeral: true });
         }
+    } else if(commandName === 'map') {
+        var key = interaction.options.getString('key');
+        if(processing)
+            return await interaction.reply({content: 'Please wait while BeatLeader is processing an image.', ephemeral: true})
+        var attempt = 0;
+        await interaction.deferReply();
+        const file = new MessageAttachment(`./output/${key}.png`);
+        var sendError = "";
+        const user = await client.users.fetch('396771959305797643');
+        async function attemptDrawing() {
+            attempt++;
+            await startDrawingMap(key);
+            try {
+                await waitUntil(() => imageReady == true);
+                const row = new MessageActionRow()
+                .addComponents(
+                    new MessageButton()
+                        .setURL("https://beatsaver.com/maps/" + key)
+                        .setLabel('View on BeatSaver')
+                        .setStyle('LINK'),
+                    new MessageButton()
+                        .setURL("https://skystudioapps.com/bs-viewer/?id=" + key)
+                        .setLabel('Map Preview')
+                        .setStyle('LINK'),
+                    new MessageButton()
+                        .setURL("https://www.beatleader.xyz/leaderboard/global/" + key + highestDiffId)
+                        .setLabel('View Leaderboard')
+                        .setStyle('LINK'),
+                );
+                await interaction.editReply({files: [file], components: [row]});
+                processing = false;
+                clearCacheFolders();
+                return false;
+            } catch (error) {
+                console.log(error);
+
+                processing = false;
+                sendError = 'An error has occurred: \n ```\n' + error + '\n```';
+                if(attempt < 3)
+                    await attemptDrawing();
+                else
+                    return true;
+            }
+        }
+        if(await attemptDrawing()) {
+            await interaction.editReply({content: "An error has occurred. Please try again."});
+            user.send(sendError);
+            clearCacheFolders();
+        }
+        return;
     }
 });
 
 client.on('messageCreate', async message => {
+    console.log("test message");
     if (message.attachments?.size > 0) {
         for (let attachment of message.attachments.values()) {
             if (attachment.name?.endsWith(".bsor")) {
@@ -267,6 +299,27 @@ client.on('messageCreate', async message => {
 });
 
 client.login(token);
+
+function clearCacheFolders() {
+    fs.readdir("./avatars/", (err, files) => {
+    if (err) throw err;
+
+        for (const file of files) {
+            fs.unlink(path.join("./avatars/", file), err => {
+                if (err) throw err;
+            });
+        }
+    });
+    fs.readdir("./output/", (err, files) => {
+        if (err) throw err;
+    
+            for (const file of files) {
+                fs.unlink(path.join("./output/", file), err => {
+                    if (err) throw err;
+                });
+            }
+        });
+}
 
 function WriteToFile(jsonData) {
     let data = JSON.stringify(jsonData);
@@ -310,6 +363,246 @@ function componentToHex(c) {
     return hex.length == 1 ? "0" + hex : hex;
 }
 
+function drawEasy(ctx, stars) {
+    var diff;
+    if(stars != 0)
+        diff = "E" + " (" + stars + "⭐)";
+    else
+        diff = "Easy";
+    ctx.font = 'bold ' + difficultyFontSize +'px Arial';
+    var nameLength = ctx.measureText(diff);
+    if(difficultyCount == 0) {
+        ctx.fillStyle = "#008055"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2), imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2), imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+        return;
+    }
+    else {
+        ctx.fillStyle = "#008055"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+    }
+}
+function drawNormal(ctx, stars) {
+    var diff;
+    if(stars != 0)
+        diff = "N" + " (" + stars + "⭐)";
+    else
+        diff = "Normal";
+    ctx.font = 'bold ' + difficultyFontSize +'px Arial';
+    var nameLength = ctx.measureText(diff);
+    if(difficultyCount == 0) {
+        ctx.fillStyle = "#1268A1"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2), imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2), imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+        return;
+    }
+    else {
+        ctx.fillStyle = "#1268A1"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+    }
+}
+function drawHard(ctx, stars) {
+    var diff;
+    if(stars != 0)
+        diff = "H" + " (" + stars + "⭐)";
+    else
+        diff = "Hard";
+    ctx.font = 'bold ' + difficultyFontSize +'px Arial';
+    var nameLength = ctx.measureText(diff);
+    if(difficultyCount == 0) {
+        ctx.fillStyle = "#BD5500"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2), imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2), imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+        return;
+    }
+    else {
+        ctx.fillStyle = "#BD5500"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+    }
+}
+function drawExpert(ctx, stars) {
+    var diff;
+    if(stars != 0)
+        diff = "E" + " (" + stars + "⭐)";
+    else
+        diff = "Expert";
+    ctx.font = 'bold ' + difficultyFontSize +'px Arial';
+    var nameLength = ctx.measureText(diff);
+    if(difficultyCount == 0) {
+        ctx.fillStyle = "#B52A1C"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2), imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2), imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+        return;
+    }
+    else {
+        ctx.fillStyle = "#B52A1C"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+    }
+}
+function drawExpertPlus(ctx, stars) {
+    var diff;
+    if(stars != 0)
+        diff = "E+" + " (" + stars + "⭐)";
+    else
+        diff = "Expert+";
+    ctx.font = 'bold ' + difficultyFontSize +'px Arial';
+    var nameLength = ctx.measureText(diff);
+    if(difficultyCount == 0) {
+        ctx.fillStyle = "#454088"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2), imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2), imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+        return;
+    }
+    else {
+        ctx.fillStyle = "#454088"
+        roundRect(ctx, imageOffset + 150 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + 150 - 40, nameLength.width + 30, 40, 20, true, false);
+        ctx.fillStyle = "white";
+        ctx.fillText(diff, imageOffset + 165 + (imageOffset / 2) + difficultyLength + difficultyPadding * difficultyCount, imageOffset + difficultyTextHeight);
+        difficultyCount += 1;
+        difficultyLength += nameLength.width + 30;
+    }
+}
+
+async function startDrawingMap(key) {
+
+    processing = true;
+    imageReady = false;
+
+    difficultyCount = 0;
+    difficultyLength = 0;
+
+    const canvas = createCanvas(1000, 400)
+    const ctx = canvas.getContext('2d')
+
+    let url = "https://api.beatsaver.com/maps/id/" + key;
+    await fetch(url, settings)
+      .then(res => res.json())
+      .then(async (json) => {
+        const title = json.name;
+        const coverURL = json.versions[0].coverURL;
+        const mapper = json.metadata.levelAuthorName;
+        const ranked = json.ranked;
+        const seconds = json.metadata.duration;
+        const songLength = "🕗" + Math.floor(180 / 60) + ":" + String(180 % 60).padEnd(2, "0");
+        const BPM = "🎵" + json.metadata.bpm;
+        const rating = "📈" + Math.round(json.stats.score * 100 * 100) / 100 + "%";
+        const uploadDate = json.uploaded;
+        const date = "📅" + uploadDate.split("T")[0];
+
+
+        ctx.lineWidth = 10;
+        ctx.fillStyle = '#222222';
+        ctx.strokeStyle = 'rgb(255,255,0)';
+        roundRect(ctx, borderOffset, borderOffset, canvas.width - borderOffset*2, canvas.height - borderOffset*2, 50, true);
+
+        if(ranked)
+            ctx.fillStyle = "#F39C12";
+        else
+            ctx.fillStyle = "white";
+        ctx.font = 'bold 75px Arial'
+        var nameLength = ctx.measureText(title);
+        var newFontSize = 75;
+        while(nameLength.width > 750) {
+            newFontSize--;
+            ctx.font = `bold ${newFontSize}px Arial`;
+            nameLength = ctx.measureText(title);
+        }
+
+        ctx.fillText(title, imageOffset + 175, imageOffset + 50);
+        ctx.fillStyle = "white";
+        ctx.font = '35px Arial'
+        ctx.fillText(mapper, imageOffset + 175, imageOffset + 95);
+
+        const cover = await loadImage(coverURL);
+        ctx.drawImage(cover, imageOffset, imageOffset, 150, 150)
+
+        for(var i = 0; i < json.versions[0].diffs.length; i++) {
+            let diff = json.versions[0].diffs[i];
+            if(diff.difficulty == "Easy" && diff.characteristic == "Standard") {
+                if(diff.stars == undefined)
+                    drawEasy(ctx, 0);
+                else
+                    drawEasy(ctx, diff.stars);
+                highestDiffId = 11;
+            }
+            if(diff.difficulty == "Normal" && diff.characteristic == "Standard") {
+                if(diff.stars == undefined)
+                    drawNormal(ctx, 0);
+                else
+                    drawNormal(ctx, diff.stars);
+                highestDiffId = 31;
+            }
+            if(diff.difficulty == "Hard" && diff.characteristic == "Standard") {
+                if(diff.stars == undefined)
+                    drawHard(ctx, 0);
+                else
+                    drawHard(ctx, diff.stars);
+                highestDiffId = 51;
+            }
+            if(diff.difficulty == "Expert" && diff.characteristic == "Standard") {
+                if(diff.stars == undefined)
+                    drawExpert(ctx, 0);
+                else
+                    drawExpert(ctx, diff.stars);
+                highestDiffId = 71;
+            }
+            if(diff.difficulty == "ExpertPlus" && diff.characteristic == "Standard") {
+                if(diff.stars == undefined)
+                    drawExpertPlus(ctx, 0);
+                else
+                    drawExpertPlus(ctx, diff.stars);
+                highestDiffId = 91;
+            }
+                
+        }
+
+        ctx.fillStyle = "white";
+        ctx.font = 'bold 35px Arial'
+        ctx.fillText(songLength, 50 + imageOffset, canvas.height - imageOffset *2);
+        ctx.fillText(BPM, 283, canvas.height - imageOffset *2);
+        ctx.fillText(rating, 483, canvas.height - imageOffset *2);
+        ctx.fillText(date, 683, canvas.height - imageOffset *2);
+
+        const out = await fs.createWriteStream(`${__dirname}/output/${key}.png`)
+        const stream = await canvas.createPNGStream()
+        stream.pipe(out)
+        out.on('finish', () => {
+            console.log(`The PNG file was created from conversion. \n Song Name: ${title}`);
+            imageReady = true;
+        })
+    })
+}
 async function startDrawing(userID) {
 
     processing = true;
@@ -334,7 +627,7 @@ async function startDrawing(userID) {
 
         ctx.lineWidth = 10;
         ctx.fillStyle = '#222222';
-        ctx.strokeStyle = 'rgb(255,255,0)';
+        ctx.strokeStyle = HSVtoRGB(Math.max(0, pp - 1000) / 18000, 1.0, 1.0);
         roundRect(ctx, borderOffset, borderOffset, canvas.width - borderOffset*2, canvas.height - borderOffset*2, 50, true);
 
         ctx.fillStyle = "white";
@@ -390,7 +683,7 @@ async function startDrawing(userID) {
                         case "png":
                             const imgPng = await loadImage(imgPath);
                             ctx.drawImage(imgPng, imageOffset, imageOffset, 150, 150)
-                            const outPng = await fs.createWriteStream(`${__dirname}/${userID}.png`)
+                            const outPng = await fs.createWriteStream(`${__dirname}/output/${userID}.png`)
                             const streamPng = await canvas.createPNGStream()
                             streamPng.pipe(outPng)
                             outPng.on('finish', () => {
@@ -401,7 +694,7 @@ async function startDrawing(userID) {
                         case "jpg":
                             const imgJpg = await loadImage(imgPath);
                             ctx.drawImage(imgJpg, imageOffset, imageOffset, 150, 150)
-                            const outJpg = await fs.createWriteStream(`${__dirname}/${userID}.png`)
+                            const outJpg = await fs.createWriteStream(`${__dirname}/output/${userID}.png`)
                             const streamJpg = await canvas.createPNGStream()
                             streamJpg.pipe(outJpg)
                             outJpg.on('finish', () => {
@@ -410,88 +703,57 @@ async function startDrawing(userID) {
                             })
                             break;
                         case "webp":
-                            await fs.access(`${userID}.jpg`, fs.constants.F_OK, async (err) => {
-                                if(!err) {
-                                    const imgWebp = await loadImage(`${userID}.jpg`);
-                                    ctx.drawImage(imgWebp, imageOffset, imageOffset, 150, 150)
-                                    const outWebp = await fs.createWriteStream(`${__dirname}/${userID}.png`)
-                                    const streamWebp = await canvas.createPNGStream()
-                                    streamWebp.pipe(outWebp)
-                                    outWebp.on('finish', () => {
-                                        console.log(`The PNG file was created from cache. \n Name: ${username}`);
-                                        imageReady = true;
-                                    })
-                                    return;
-                                }
-                                else {
-                                    const downloader = new Downloader({
-                                        url: imgPath,
-                                        directory: "./",
-                                        fileName: `${userID}.webp`,
-                                        cloneFiles: false,
-                                    });
-                                    try {
-                                        await downloader.download();
-                                    
-                                        console.log("All done");
-                                        const result = await webp.dwebp(`${userID}.webp`, `${userID}.jpg`,"-o",logging="-v");
-                                    } catch (error) {
-                                        console.log("Download failed", error);
-                                    }
-                                
-                                    const imgWebp = await loadImage(`${userID}.jpg`);
-                                    ctx.drawImage(imgWebp, imageOffset, imageOffset, 150, 150)
-                                    const outWebp = await fs.createWriteStream(`${__dirname}/${userID}.png`)
-                                    const streamWebp = await canvas.createPNGStream()
-                                    streamWebp.pipe(outWebp)
-                                    outWebp.on('finish', () => {
-                                        console.log(`The PNG file was created from conversion. \n Name: ${username}`);
-                                        imageReady = true;
-                                    })
-                                }
+                            const downloader = new Downloader({
+                                url: imgPath,
+                                directory: "./avatars/",
+                                fileName: `${userID}.webp`,
+                                cloneFiles: false,
                             });
+                            try {
+                                await downloader.download();
+                            
+                                console.log("All done");
+                                const result = await webp.dwebp(`./avatars/${userID}.webp`, `./avatars/${userID}.jpg`,"-o",logging="-v");
+                            } catch (error) {
+                                console.log("Download failed", error);
+                            }
+                        
+                            const imgWebp = await loadImage(`./avatars/${userID}.jpg`);
+                            ctx.drawImage(imgWebp, imageOffset, imageOffset, 150, 150)
+                            const outWebp = await fs.createWriteStream(`${__dirname}/output/${userID}.png`)
+                            const streamWebp = await canvas.createPNGStream()
+                            streamWebp.pipe(outWebp)
+                            outWebp.on('finish', () => {
+                                console.log(`The PNG file was created from conversion. \n Name: ${username}`);
+                                imageReady = true;
+                            })
                             break;
                         default:
-                            await fs.access(`${userID}.jpg`, fs.constants.F_OK, async (err) => {
-                                if(!err) {
-                                    const img = await loadImage(`${userID}.jpg`);
-                                    ctx.drawImage(img, imageOffset, imageOffset, 150, 150)
-                                    const out = await fs.createWriteStream(`${__dirname}/${userID}.png`)
-                                    const stream = await canvas.createPNGStream()
-                                    stream.pipe(out)
-                                    out.on('finish', () => {
-                                        console.log(`The PNG file was created from cache. \n Name: ${username}`);
-                                        imageReady = true;
-                                    })
-                                }
-                                else {
-                                    const avatarDownloader = new Downloader({
-                                        url: imgPath,
-                                        directory: "./",
-                                        fileName: `${userID}.` + splitUrl[splitUrl.length - 1],
-                                        cloneFiles: false,
-                                    });
-                                    try {
-                                        await avatarDownloader.download();
-                                        console.log("All done");
-                                    } catch (error) {
-                                        console.log("Download failed", error);
-                                    }
-            
-                                    Jimp.read(`${userID}.` + splitUrl[splitUrl.length - 1], async function (err, image) {
-                                        await image.writeAsync(`${userID}.jpg`);
-                                        const img = await loadImage(`${userID}.jpg`);
-                                        ctx.drawImage(img, imageOffset, imageOffset, 150, 150)
-                                        const out = await fs.createWriteStream(`${__dirname}/${userID}.png`)
-                                        const stream = await canvas.createPNGStream()
-                                        stream.pipe(out)
-                                        out.on('finish', () => {
-                                            console.log(`The PNG file was created from conversion. \n Name: ${username}`);
-                                            imageReady = true;
-                                        })
-                                    })
-                                }
+                            const avatarDownloader = new Downloader({
+                                url: imgPath,
+                                directory: "./avatars/",
+                                fileName: `${userID}.` + splitUrl[splitUrl.length - 1],
+                                cloneFiles: false,
                             });
+                            try {
+                                await avatarDownloader.download();
+                                console.log("All done");
+                            } catch (error) {
+                                console.log("Download failed", error);
+                            }
+    
+                            Jimp.read(`./avatars/${userID}.` + splitUrl[splitUrl.length - 1], async function (err, image) {
+                                await image.writeAsync(`./avatars/${userID}.jpg`);
+                                const img = await loadImage(`./avatars/${userID}.jpg`);
+                                ctx.drawImage(img, imageOffset, imageOffset, 150, 150)
+                                const out = await fs.createWriteStream(`${__dirname}/output/${userID}.png`)
+                                const stream = await canvas.createPNGStream()
+                                stream.pipe(out)
+                                out.on('finish', () => {
+                                    console.log(`The PNG file was created from conversion. \n Name: ${username}`);
+                                    imageReady = true;
+                                })
+                            })
                             break;
                     }
                 } catch (error) {
