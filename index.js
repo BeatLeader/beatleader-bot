@@ -45,6 +45,69 @@ client.once('ready', () => {
 var highestDiffId = 0;
 
 client.on('interactionCreate', async interaction => {
+    if(interaction.isButton()) {
+        let user = interaction.user;
+        for(var i = 0; i < linkedAccounts.length; i++) {
+            if(linkedAccounts[i].discordID == user.id) {
+                await interaction.deferReply();
+                const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
+                let url = "https://api.beatleader.xyz/player/" + linkedAccounts[i].blUserID;
+                const res = await fetch(url, { method: "GET" })
+                try {
+                    let json = await res.json();
+                } catch (error) {
+                    console.log(error);
+                    await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
+                    cancelProcess = true;
+                }
+                if(cancelProcess)
+                    return;
+                var sendError = "";
+                const user = await client.users.fetch('396771959305797643');
+                async function attemptDrawing() {
+                    attempt++;
+                    await startDrawing(linkedAccounts[i].blUserID);
+                    try {
+                        await waitUntil(() => imageReady == true);
+                        const row = new MessageActionRow()
+                        .addComponents(
+                            new MessageButton()
+                                .setURL("https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID)
+                                .setLabel('View on BeatLeader')
+                                .setStyle('LINK'),
+                            new MessageButton()
+                                .setCustomId('redo')
+                                .setLabel(`What's my Rank?`)
+                                .setStyle('SECONDARY')
+                                .setEmoji('🔄'),
+                        );
+                        await interaction.editReply({files: [file], components: [row]});
+                        processing = false;
+                        clearCacheFolders();
+                        return false;
+                    } catch (error) {
+                        console.log(error);
+
+                        processing = false;
+                        sendError = 'An error has occurred: \n ```\n' + error + '\n```';
+                        if(attempt < 3)
+                            await attemptDrawing();
+                        else
+                            return true;
+                    }
+                }
+                if(await attemptDrawing()) {
+                    await interaction.editReply({content: "An error has occurred. Please try again."});
+                    user.send(sendError);
+                    clearCacheFolders();
+                }
+                return;
+            }
+        }
+        await interaction.reply({ content: `You don't have an account linked.`, ephemeral: true });
+        return;
+    }
+
 	if (!interaction.isCommand()) return;
 
 	const { commandName } = interaction;
@@ -62,7 +125,7 @@ client.on('interactionCreate', async interaction => {
             return;
         }
         try {
-            let url = "https://beatleader.azurewebsites.net/player/" + interaction.options.getString('userid');
+            let url = "https://api.beatleader.xyz/player/" + interaction.options.getString('userid');
             await fetch(url, { method: "GET" })
                 .then(res => res.json())
                 .then(async (json) => {
@@ -106,7 +169,7 @@ client.on('interactionCreate', async interaction => {
             await interaction.deferReply();
             const file = new MessageAttachment(`./output/${userID}.png`);
             var cancelProcess = false;
-            let url = "https://beatleader.azurewebsites.net/player/" + userID;
+            let url = "https://api.beatleader.xyz/player/" + userID;
             await fetch(url, { method: "GET" })
                 .then(async res => {
                     try {
@@ -132,6 +195,11 @@ client.on('interactionCreate', async interaction => {
                             .setURL("https://www.beatleader.xyz/u/" + userID)
                             .setLabel('View on BeatLeader')
                             .setStyle('LINK'),
+                        new MessageButton()
+                            .setCustomId('redo')
+                            .setLabel(`What's my Rank?`)
+                            .setStyle('SECONDARY')
+                            .setEmoji('🔄'),
                     );
                     await interaction.editReply({files: [file], components: [row]});
                     processing = false;
@@ -160,7 +228,7 @@ client.on('interactionCreate', async interaction => {
                 if(linkedAccounts[i].discordID == mentionable.id) {
                     await interaction.deferReply();
                     const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
-                    let url = "https://beatleader.azurewebsites.net/player/" + linkedAccounts[i].blUserID;
+                    let url = "https://api.beatleader.xyz/player/" + linkedAccounts[i].blUserID;
                     await fetch(url, { method: "GET" })
                         .then(async res => {
                             try {
@@ -186,6 +254,11 @@ client.on('interactionCreate', async interaction => {
                                     .setURL("https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID)
                                     .setLabel('View on BeatLeader')
                                     .setStyle('LINK'),
+                                new MessageButton()
+                                    .setCustomId('redo')
+                                    .setLabel(`What's my Rank?`)
+                                    .setStyle('SECONDARY')
+                                    .setEmoji('🔄'),
                             );
                             await interaction.editReply({files: [file], components: [row]});
                             processing = false;
@@ -217,7 +290,7 @@ client.on('interactionCreate', async interaction => {
                 if(linkedAccounts[i].discordID == user.id) {
                     await interaction.deferReply();
                     const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
-                    let url = "https://beatleader.azurewebsites.net/player/" + linkedAccounts[i].blUserID;
+                    let url = "https://api.beatleader.xyz/player/" + linkedAccounts[i].blUserID;
                     await fetch(url, { method: "GET" })
                         .then(async res => {
                             try {
@@ -243,6 +316,11 @@ client.on('interactionCreate', async interaction => {
                                     .setURL("https://www.beatleader.xyz/u/" + linkedAccounts[i].blUserID)
                                     .setLabel('View on BeatLeader')
                                     .setStyle('LINK'),
+                                new MessageButton()
+                                    .setCustomId('redo')
+                                    .setLabel(`What's my Rank?`)
+                                    .setStyle('SECONDARY')
+                                    .setEmoji('🔄'),
                             );
                             await interaction.editReply({files: [file], components: [row]});
                             processing = false;
@@ -668,10 +746,10 @@ async function startDrawing(userID) {
     processing = true;
     imageReady = false;
 
-    const canvas = createCanvas(800, 400)
+    const canvas = createCanvas(900, 400)
     const ctx = canvas.getContext('2d')
 
-    let url = "https://beatleader.azurewebsites.net/player/" + userID;
+    let url = "https://api.beatleader.xyz/player/" + userID;
     await fetch(url, settings)
       .then(res => res.json())
       .then(async (json) => {
