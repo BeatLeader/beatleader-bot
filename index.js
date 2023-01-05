@@ -738,7 +738,6 @@ async function startDrawingMap(key) {
         const stream = await canvas.createPNGStream()
         stream.pipe(out)
         out.on('finish', () => {
-            console.log(`The PNG file was created from conversion. \n Song Name: ${title}`);
             imageReady = true;
         })
     })
@@ -760,7 +759,7 @@ async function startDrawing(userID) {
         var regionalRank = "#" + json.countryRank;
         var pp = json.pp;
         var region = json.country;
-        var regionImgPath = "https://beatleadercdn.blob.core.windows.net/flags/" + region.toLowerCase() + ".png";
+        var regionImgPath = "https://www.beatleader.xyz/assets/flags/" + region.toLowerCase() + ".png";
         var imgPath = json.avatar;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -815,10 +814,9 @@ async function startDrawing(userID) {
 
         http.get(imgPath, response => {
             response.on('readable', async () => {
-                const chunk = response.read(imageType.minimumBytes);
+                const chunk = response.read();
                 response.destroy();
                 try {
-                    console.log(imageType(chunk).ext)
                     switch(imageType(chunk).ext) {
                         case "png":
                             const imgPng = await loadImage(imgPath);
@@ -827,7 +825,6 @@ async function startDrawing(userID) {
                             const streamPng = await canvas.createPNGStream()
                             streamPng.pipe(outPng)
                             outPng.on('finish', () => {
-                                console.log(`The PNG file was created from conversion. \n Name: ${username}`);
                                 imageReady = true;
                             })
                             break;
@@ -838,7 +835,6 @@ async function startDrawing(userID) {
                             const streamJpg = await canvas.createPNGStream()
                             streamJpg.pipe(outJpg)
                             outJpg.on('finish', () => {
-                                console.log(`The PNG file was created from conversion. \n Name: ${username}`);
                                 imageReady = true;
                             })
                             break;
@@ -852,7 +848,6 @@ async function startDrawing(userID) {
                             try {
                                 await downloader.download();
                             
-                                console.log("All done");
                                 const result = await webp.dwebp(`./avatars/${userID}.webp`, `./avatars/${userID}.jpg`,"-o",logging="-v");
                             } catch (error) {
                                 console.log("Download failed", error);
@@ -864,7 +859,6 @@ async function startDrawing(userID) {
                             const streamWebp = await canvas.createPNGStream()
                             streamWebp.pipe(outWebp)
                             outWebp.on('finish', () => {
-                                console.log(`The PNG file was created from conversion. \n Name: ${username}`);
                                 imageReady = true;
                             })
                             break;
@@ -877,7 +871,6 @@ async function startDrawing(userID) {
                             });
                             try {
                                 await avatarDownloader.download();
-                                console.log("All done");
                             } catch (error) {
                                 console.log("Download failed", error);
                             }
@@ -890,7 +883,6 @@ async function startDrawing(userID) {
                                 const stream = await canvas.createPNGStream()
                                 stream.pipe(out)
                                 out.on('finish', () => {
-                                    console.log(`The PNG file was created from conversion. \n Name: ${username}`);
                                     imageReady = true;
                                 })
                             })
