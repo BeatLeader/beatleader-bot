@@ -157,18 +157,18 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ content: `You don't have an account linked!`, ephemeral: true });
                 return;
     } else if(commandName === 'rank') {
+        await interaction.deferReply();
         if(processing)
-            return await interaction.reply({content: 'Please wait while BeatLeader is processing an image.', ephemeral: true})
+            return await interaction.editReply({content: 'Please wait while BeatLeader is processing an image.', ephemeral: true})
         let user = interaction.user;
         var userID = interaction.options.getString('userid');
         if(isNaN(userID)) {
-            await interaction.reply({ content: `That is not a valid ID.`, ephemeral: false });
+            await interaction.editReply({ content: `That is not a valid ID.`, ephemeral: false });
             return;
         }
         let mentionable = interaction.options.getMentionable('mentionable');
         var attempt = 0;
         if(userID != undefined && mentionable == undefined) {
-            await interaction.deferReply();
             const file = new MessageAttachment(`./output/${userID}.png`);
             var cancelProcess = false;
             let url = "https://api.beatleader.xyz/player/" + userID;
@@ -228,7 +228,6 @@ client.on('interactionCreate', async interaction => {
         } else if(userID == undefined && mentionable != undefined) {
             for(var i = 0; i < linkedAccounts.length; i++) {
                 if(linkedAccounts[i].discordID == mentionable.id) {
-                    await interaction.deferReply();
                     const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
                     let url = "https://api.beatleader.xyz/player/" + linkedAccounts[i].blUserID;
                     await fetch(url, { method: "GET" })
@@ -284,13 +283,12 @@ client.on('interactionCreate', async interaction => {
                     return;
                 }
             }
-            await interaction.reply({ content: `The user you mentioned doesn't have an account linked.`, ephemeral: true });
+            await interaction.editReply({ content: `The user you mentioned doesn't have an account linked.`, ephemeral: true });
         } else if(userID != undefined && mentionable != undefined) {
-            await interaction.reply({ content: `There was an error in your command.`, ephemeral: true });
+            await interaction.editReply({ content: `There was an error in your command.`, ephemeral: true });
         } else {
             for(var i = 0; i < linkedAccounts.length; i++) {
                 if(linkedAccounts[i].discordID == user.id) {
-                    await interaction.deferReply();
                     const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
                     let url = "https://api.beatleader.xyz/player/" + linkedAccounts[i].blUserID;
                     await fetch(url, { method: "GET" })
@@ -347,14 +345,14 @@ client.on('interactionCreate', async interaction => {
                     return;
                 }
             }
-            await interaction.reply({ content: `You don't have an account linked.`, ephemeral: true });
+            await interaction.editReply({ content: `You don't have an account linked.`, ephemeral: true });
         }
     } else if(commandName === 'map') {
+        await interaction.deferReply();
         var key = interaction.options.getString('key');
         if(processing)
-            return await interaction.reply({content: 'Please wait while BeatLeader is processing an image.', ephemeral: true})
+            return await interaction.editReply({content: 'Please wait while BeatLeader is processing an image.', ephemeral: true})
         var attempt = 0;
-        await interaction.deferReply();
         const file = new MessageAttachment(`./output/${key}.png`);
         let url = "https://api.beatsaver.com/maps/id/" + key;
         await fetch(url, { method: "GET" })
