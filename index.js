@@ -52,14 +52,16 @@ client.on('interactionCreate', async interaction => {
                 await interaction.deferReply();
                 const file = new MessageAttachment(`./output/${linkedAccounts[i].blUserID}.png`);
                 let url = "https://api.beatleader.xyz/player/" + linkedAccounts[i].blUserID;
-                const res = await fetch(url, { method: "GET" })
-                try {
-                    let json = await res.json();
-                } catch (error) {
-                    console.log(error);
-                    await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
-                    cancelProcess = true;
-                }
+                await fetch(url, { method: "GET" })
+                    .then(async res => {
+                        try {
+                            let json = await res.json();
+                        } catch (error) {
+                            console.log(error);
+                            await interaction.editReply({content: "A player with that `userID` doesn't exist!"});
+                            cancelProcess = true;
+                        }
+                    });
                 if(cancelProcess)
                     return;
                 var sendError = "";
@@ -758,7 +760,7 @@ async function startDrawing(userID) {
         var regionalRank = "#" + json.countryRank;
         var pp = json.pp;
         var region = json.country;
-        var regionImgPath = "https://cdn.beatleader.xyz/flags/" + region.toLowerCase() + ".png";
+        var regionImgPath = "https://beatleadercdn.blob.core.windows.net/flags/" + region.toLowerCase() + ".png";
         var imgPath = json.avatar;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
