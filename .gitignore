@@ -1,7 +1,5 @@
 node_modules/
-*.png
-*.jpg
-*.webp
-*.gif
-*.jpeg
-config.json
+database.sqlite
+.env
+dist
+assets/cache
